@@ -9,6 +9,7 @@ Now that your server is listening for OSFI connections, you can create your PHP 
 
 For example:
 
+<code>
 <?php
 include_once('pick.inc'); // provides some basic pick like string and array handling
 include_once('osfi.class'); // the base class to use the OSFI communication protocol
@@ -22,3 +23,4 @@ if ($rp->connect($user, $password, $account, $account_password)) {
 
 ?>
 
+</code>
