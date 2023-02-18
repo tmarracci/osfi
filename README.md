@@ -24,3 +24,39 @@ if ($rp->connect($user, $password, $account, $account_password)) {
 ?&gt;
 
 </code>
+
+Files and functions.
+
+The pick.inc file contains support for pick like functions in the PHP environment space.
+
+<code>
+__PRINT($txt) will output the specified text and replace Pick/D3 delimiters 
+function DIM($n) create a blank pick array of dimension $n.  Pick arrays start with 1
+function INMAT($arr) the size of the array $arr in pick dimensions
+function MATBUILD($arr) construct a FE delimited string from the pick array $arr
+function MATPARSE($str) output a pick array (starting at 1) of the string delimited by FE
+function MAT(&$arr,$val) fill the pick array $arr with $val
+function MATPAD(&$arr,$attr) insure the array $arr has at least $attr fields
+_function _EXTRACT($rec, $a, $v = 0, $s = 0) equivalent to rec<a> (or rec<a,v> or rec<a,v,s>)
+_function REPLACE($rec, $str, $a, $v = 0, $s = 0) equivalent to rec<a,v,s> = str
+function INSERT($rec, $str, $a, $v = 0, $s = 0) equivalent to ins str before rec<a,v,s>
+function DELETE($rec, $a, $v = 0, $s = 0) equivalent to del rec<a,v,s>
+function DCOUNT($rec, $ch) return number of fields in rec delimited by ch
+function _COUNT($rec, $ch) return number of ch in rec
+function INDEX($rec, $str, $n) return nth position of str in rec. note a PHP string starts at 0 so return value 0 does not mean not found
+  instead use === false to determine if str is not found
+  for example, INDEX('abc','z',1) === false
+  
+function FIELD($str, $sep, $n) return the nth field of str delimited by sep
+function LOCATE($str, $rec, &$pos, $a = 0, $v = 0, $st = 1, $sort = null) find str in the dynamic array rec
+function _DATE() returns the current date in Pick/D3 julian date (ie 0 = Dec 31, 1967)
+function _TIME() returns number of seconds since midnight
+function FORMAT($str, $just, $fill = null, $length = null) return str, left or right justfied, on a field of length fills
+function _OCONV($str, $mask) perform output conversion on str. supported masks include:
+  D (or various kinds), MTH, MTS, MCx (of various forms), MR/ML with scaling, precision, and formatting, and MX
+  any other mask is sent to OSFI to be handled by the connected Pick/D3 virtual machine
+function _ICONV($str, $mask) perform input conversion on str. supported masks include:
+  D, MT, MR/ML, and MX. all other masks are sent to virtual machine for processing
+  
+  </code>
+  
