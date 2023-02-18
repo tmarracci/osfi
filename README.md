@@ -10,7 +10,7 @@ Now that your server is listening for OSFI connections, you can create your PHP 
 For example:
 
 <code>
-<?php
+&lt;?php
 include_once('pick.inc'); // provides some basic pick like string and array handling
 include_once('osfi.class'); // the base class to use the OSFI communication protocol
 include_once('picknfs.class'); // primary class to perform pick/D3 open, read, write, delete, select, readnext, root, key, execute, and call functions
@@ -21,6 +21,6 @@ if ($rp->connect($user, $password, $account, $account_password)) {
 } else
   die('access denied');
 
-?>
+?&gt;
 
 </code>
