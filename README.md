@@ -60,3 +60,14 @@ function _ICONV($str, $mask) perform input conversion on str. supported masks in
   
   </code>
   
+osfi.class is the parent class used by picknfs to process the OSFI protocol.  However, 4 methods are available to perform pick array read/write. That is to say, the array must be a pick formatted array starting at index 1 (see array functions above to build pick style arrays)
+  
+<code>
+function matread(&$arr, $fd, $id) read a record and store it as an array
+function matreadu(&$arr, $fd, $id, &$locked) read a record and lock it (if not already locked) and store in array. if locked by another user, locked will return true
+function matwrite($arr, $fd, $id) write the record in array arr and if locked, unlock it
+function matwriteu($arr, $fd, $id) write the record in array and if locked, remain locked
+  
+function get_pick() use this function (this is a global function, not a method) to access a global osfi object. modify as needed for your particular situation.  The provided version stores the user settings in a $_SERVER[CREDENTIALS] variable elsewhere and this function will make a connection via a global osfi object.  Your mileage may vary.
+  
+</code>
