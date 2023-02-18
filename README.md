@@ -71,3 +71,67 @@ function matwriteu($arr, $fd, $id) write the record in array and if locked, rema
 function get_pick() use this function (this is a global function, not a method) to access a global osfi object. modify as needed for your particular situation.  The provided version stores the user settings in a $_SERVER[CREDENTIALS] variable elsewhere and this function will make a connection via a global osfi object.  Your mileage may vary.
   
 </code>
+
+picknfs.class is the heart of the matter.  This contains the data access methods you will use to access data in your program
+  
+<code>
+  function __construct($host, $port) When specifying a new PickNFS object, provide the host and port to connect to
+  function connect($user, $pass, $acct, $apsw) connect to the database. return true if ok, false if it fails
+  function open($dict, $fname, &$fd)  open a file (specify the full path account,file, for best results) and set a handle to it. returns true or false
+  function close($fd)
+  function clearfile($fd)
+  function read(&$rec, $fd, $id) read a record and store the dynamic array in rec. returns true/false depending on whether item is found
+  function readu(&$rec, $fd, $id, &$locked) read a record and lock it. if already locked, returns false and sets locked to true
+  function readv(&$rec, $fd, $id, $attr) read a single attribute from a file (note: this is not efficient since OSFI does not provide support for readv)
+  function readvu(&$rec, $fd, $id, $attr, &$locked) read a single attribute and lock. if already locked, return false and set locked to true
+  function write($rec, $fd, $id) write a dynamic array record to a file. If the record was locked, it will be unlocked
+  function writeu($rec, $fd, $id) write a record and leave it locked
+  function writev($rec, $fd, $id, $attr) write a single attribute and release any locks
+  function writevu($rec, $fd, $id, $attr) write a single attribute and leave it locked
+  function delete_item($fd, $id) delete a record from a file
+  function release($fd, $id) release the lock set with readu
+  
+  function execute($tcl, &$cap = null, &$ret = null, $passlist = 0, $passitems = null, &$rtnlist = null, &$count = null)
+     execute a TCL statement in the virtual machine.  all arguments are optional except the tcl statement to execute
+     $cap - if provided, store the output in cap. 
+     $ret - if provided, store the error number if there is one
+            if cap and ret are both null, output will be printed 
+     $passlist - to pass a list of items from a select list, set to the list variable+1.  
+     $passitems - dynamic array (FE delimited) of item id's to pass to the tcl statement
+     $rtnlist - a select variable in which to store the resulting list, if one is created
+     $count - number of items selected by the tcl statement
+ 
+  function system($val) the pick/d3 system function
+  function iconv($str, $conv) handle iconv masks that _iconv() does not support
+  function oconv($str, $conv) handle oconv masks that _oconv() does not support
+  function call($sub,$args = null) 
+    call a subroutine. With this handler, the subroutine need not be compiled with flash.  For most consistent results, provide a full path
+    to the subroutine (eg. dm,bp, subname)
+    if the subroutine takes arguments, pass them in an array.  Arguments to be passed by reference must be preceeded with &
+  
+    for example, assume the subroutine called ADD is in the DM,BP, file:
+  
+  001 SUBROUTINE (X,Y,S)
+  002 S = X+Y
+  003 RETURN
+  004 END
+  
+  use $rp->call('dm,bp, add',array(1,2,&$sum)) to call it and return the result in $sum
+  
+  function lock($lock, $val)
+    $rp->lock(1,10) - lock execution lock #10. return true if we can, false if already locked
+    $rp->lock(0,10) - unlock execution lock #10
+  
+  
+  function select($fd, &$sel) select the file referenced by $fd and return a select list variable $sel
+  function readnext(&$id, &$sel, &$val = null)  readnext id from the select variable $sel. If $val is set, then it is assumed select is from a previous execute and return a multivalued set.  $val will have the value mark counter of the next item
+  function clearselect($sel) if a select variable does not readnext to completion, clear it's use to avoid memory or workspace issues
+  
+  function root($file, $corr, &$sel) access the index on the file name $file and correlative $corr (must be an A correlative in order to work) and return an index handle sel.  returns true or false
+  function key($mode, $root, &$key, &$id, &$val = null)  access the index referenced by $root
+  function closeroot($sel) close an index root when done with it
+  
+  
+</code>
+  
+picknfs.trigger
