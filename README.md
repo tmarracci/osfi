@@ -1,9 +1,15 @@
 # osfi
 D3 OSFI interface for PHP
 
-Access D3 data using the OSFI interface provided with D3 version 7+
+Access D3 data using the OSFI interface provided with D3 version 7+.  The system was developed for and tested on D3/Linux 10.2 and follows functionality as spelled out in the documentation found at https://www3.rocketsoftware.com/rocketd3/support/documentation/d3nt/102/refman/index.htm
 
 To setup your server, log onto DM and use the NETWORK-SETUP command to create a server.  The easiest and most secure is to make the server listen on localhost and the default port 1598.
+Before you can start, you need to provide a file for unsupported OSFI functionality.  As an example, create this file in DM called PICKNFS and size it bearing in mind the workload you expect your server to accommodate.  Add a trigger as follows to execute the picknfs.trigger program (code provided herein) on updates:
+
+U DICT PICKNFS PICKNFS
+008 CALLX DM,BP, PICKNFS.TRIGGER
+
+In DM,BP, (or any file path of your choice and change 008 above accordingly) add the included PICKNFS.TRIGGER basic program and compile it.  Note if you compile this with flash, then any subroutines you call must also be flashed.
 
 Now that your server is listening for OSFI connections, you can create your PHP scripts to access pick/D3 data.
 
@@ -133,5 +139,4 @@ picknfs.class is the heart of the matter.  This contains the data access methods
   
   
 </code>
-  
-picknfs.trigger
+
