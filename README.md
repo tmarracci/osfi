@@ -6,8 +6,10 @@ Access D3 data using the OSFI interface provided with D3 version 7+.  The system
 To setup your server, log onto DM and use the NETWORK-SETUP command to create a server.  The easiest and most secure is to make the server listen on localhost and the default port 1598.
 Before you can start, you need to provide a file for unsupported OSFI functionality.  As an example, create this file in DM called PICKNFS and size it bearing in mind the workload you expect your server to accommodate.  Add a trigger as follows to execute the picknfs.trigger program (code provided herein) on updates:
 
+<pre>
 U DICT PICKNFS PICKNFS
 008 CALLX DM,BP, PICKNFS.TRIGGER
+</pre>
 
 In DM,BP, (or any file path of your choice and change 008 above accordingly) add the included PICKNFS.TRIGGER basic program and compile it.  Note if you compile this with flash, then any subroutines you call must also be flashed.
 
