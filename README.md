@@ -142,3 +142,4 @@ picknfs.class is the heart of the matter.  This contains the data access methods
   
 </code>
 
+See LICENSE file.  No warranty, express or implied, is provided.  Use at your own risk.
