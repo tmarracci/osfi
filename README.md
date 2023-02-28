@@ -85,6 +85,7 @@ picknfs.class is the heart of the matter.  This contains the data access methods
 <code>
   function __construct($host, $port) When specifying a new PickNFS object, provide the host and port to connect to
   function connect($user, $pass, $acct, $apsw) connect to the database. return true if ok, false if it fails
+    or connect() to make a connection without logging in.  Provides access but at reduced security due to ignoring credentials
   function open($dict, $fname, &$fd)  open a file (specify the full path account,file, for best results) and set a handle to it. returns true or false
   function close($fd)
   function clearfile($fd)
