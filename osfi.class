@@ -1,0 +1,478 @@
+<?
+// vim:foldmethod=marker
+
+/*
+  remote pick access class
+  osfi variants must derive from this class
+
+  however, it will provide send/get and marshalling data to/from the osfi header
+  for more on the header format, see /usr/lib/pick/rp.h
+
+  to use it, extend OSFI, provide CRUD and other methods
+  to send a request, init(), set arg and prot values, if send, if get, then proceed
+
+*/
+
+/* commands and includes {{{ */
+/*
+  class for accessing pick via osfi
+
+  requires sockets module
+
+  OSFi - interface to remote pick classes
+        each class must implement the functions listed
+        define args, proto, etc for rp header
+        send/get routines
+
+        CRUD (with MAT option)
+        dynamic array handling (extract, replace, insert, delete, locate)
+        date(), time()
+        oconv, iconv (with linkage to remote to handle conversions we cannot do in php)
+        
+  PickNFS - standard, traditional OSFI, limited to 39 listeners
+            use stunnel if we need SSL
+
+*/
+
+if (!extension_loaded('sockets')) die('sockets module required');
+include_once('pick.inc');
+/* }}} */
+
+/* constants {{{ */
+define('RP_MAXSTRSZ', 1500);    /* Maximum length of small string */
+define('RP_NBFILES',  32);      /* Default number of opened files */
+define('RP_MAXDRIVERS', 16);      /* Maximum number of drivers */
+define('RP_HDRIDN', 0x01220344);  /* Magic number for headers */
+
+/*  SSL Definitions */
+/*  =============== */
+define('RP_SSLKEY_KEYFILE',"server.pem"); /* [30] Permanent key */
+define('RP_SSLERR_LOWRANGE',-20); /* [30] SSL error codes (low range) */
+define('RP_SSLERR_HIGHRANGE',-1); /* [30] SSL error codes (high range) */
+
+/*  Command Codes */
+/*  ============= */
+define('RP_RETIX',           0x01    ); /* Read an item */
+define('RP_UPDITM',          0x02    ); /* Write an item */
+define('RP_RELEASE',         0x03    ); /* Release lock */
+define('RP_SEQIDS',          0x04    ); /* Select a file */
+define('RP_GETGRP',          0x05    ); /* Select a file */
+
+define('RP_OPEN',            0x06    ); /* Open a file */
+define('RP_CLOSE',           0x07    ); /* Close a file */
+define('RP_CLEARFILE',       0x08    ); /* Clear a file */
+
+define('RP_KEY',             0x09    ); /* Index key */
+define('RP_GETSEC',          0x0A    ); /* Get data sections */
+define('RP_GETFCB',          0x0B    ); /* Get FCB information */
+define('RP_UPDID',           0x0C    ); /* Get new item id for UP */
+define('RP_ILIST',           0x0D    ); /* Get item loc listing */
+define('RP_FILE',            0x0E    ); /* File lock/unlock */
+define('RP_CAPABILITIES',    0x0F    ); /* Report driver capabilities */
+
+define('RP_LOGON',           0x10    ); /* Log on to remote database */
+define('RP_CRINDX',          0x11    ); /* [19] Create index */
+define('RP_DELINDX',         0x12    ); /* [19] Delete index */
+define('RP_DELETE',          0x13    ); /* [13] Delete file */
+define('RP_CREATE',          0x15    ); /* [13] Create a file */
+
+define('RP_SVREAD',          0x80    ); /* Server Read */
+define('RP_SVWRITE',         0x81    ); /* [29] Server Write */
+define('RP_SVKILL',          0x82    ); /* [29] Kill Server */
+define('RP_SVSTAT',          0x83    ); /* Get Stats */
+define('RP_SVINIT',          0x84    ); /* Init Server */
+define('RP_SLVINIT',         0x85    ); /* [21] Slave init (NT only) */
+define('RP_SELECT',          0x86    ); /* TCP driver select() */
+
+define('RP_INIT',            0xf0    ); /* Initialize driver */
+define('RP_RESET',           0xf1    ); /* Reset Driver */
+define('RP_IDENTIFY',        0xf2    ); /* Identify driver */
+
+define('RP_OK',0);                      /* success */
+/*  Error Codes */
+/*  ==========j */
+define('RP_NOTFND',   0x80000001);    /* Item/File not found */
+define('RP_LOCKED',   0x80000002);   /* Item locked */
+define('RP_CMDSUP',   0x80000003);   /* Command not supported */
+define('RP_ABORT',    0x87000004);   /* Abrtd. Fiel corruption */
+define('RP_BADCMD',   0x86000005);   /* Illegal command */
+define('RP_NORESP',   0x87000006);   /* Server did not respond */
+define('RP_BADFILE',  0x87000007);   /* File invalid */
+define('RP_BADDRVR',  0x87000008);   /* Invalid driver */
+define('RP_NOGRP',    0x80000009);   /* Grp exaustd on seq op */
+define('RP_NOFD',     0x8600000a);   /* Cant alloc fle dscrptr */
+define('RP_PERM',     0x8000000b);   /* Permission denied */
+define('RP_NOSERV',   0x8700000c);   /* Cannot locate service */
+define('RP_NOHOST',   0x8700000d);   /* Cannot locate host */
+define('RP_NOPROT',   0x8700000E);   /* Cannot locate protocol */
+define('RP_NOSOCK',   0x8700000F);   /* Cant open socket */
+define('RP_NOBIND',   0x87000010);   /* Cannot bind to service */
+define('RP_NOPASS',   0x87000011);   /* Cant set passive stat */
+define('RP_CONNECT',  0x87000012);   /* Cannot connect link */
+define('RP_DISCONN',  0x87000013);   /* Link disconnected */
+define('RP_NOTTRANS', 0x87000014);   /* Transmission Error */
+define('RP_INTER',    0x81000015);   /* Interrupt */
+define('RP_MEM',      0x87000016);   /* Not enough memory */
+define('RP_NOLOGON',  0x87000017);   /* Invalid db or pass */
+define('RP_SQLERROR', 0x87000018);   /* SQL returned an err */
+define('RP_COLSUPP', 0x87000019);    /* Unsupported column type */
+define('RP_STILLOPEN', 0x8000001a);  /* File is still open can't delete */
+define('RP_BADINDEX', 0x8700001b);   /* [25] Bad index corr */
+define('RP_DELFILE', 0x8700001c);    /* [26] File deleted */
+define('RP_ITEMFMT', 0x87000020);    /* Improperly formatted item */
+define('RP_TRIGGERFAIL', 0x80000021);/* Failed update Trigger */
+define('RP_VERSION', 0x87000022);	/* AI 34106 */
+define('RP_ACTIVATION', 0x87000023);	/* AI 34124 */
+define('RP_NOSSL	', 0x80000024);	/* missing Encryption SSL's */
+define('RP_SSLSETUP', 0x80000025);		/* [30] SSL setup error */
+define('RP_SSLCONNECT', 0x80000026);	/* [30] SSL connection error */
+/* Masks of rp_arg0 (open) */
+/* ======================= */
+define('RP_OPENCASED',   0x00000040); /* Open a case-sensitive index, virtual flag: rp.reqCased */
+define('RP_OPENRESTORE', 0x00000020); /* [22] Called during restore */
+define('RP_OPENSAVE',    0x00000010); /* [22] Called during restore */
+define('RP_OPENMD',      0x00000008); /* [22] Open MD (level 0) */
+define('RP_OPENCREATE',  0x00000004); /* Create the file if not there */
+define('RP_OPENINDX',    0x00000002); /* Open an index */
+define('RP_OPENDATA',    0x00000001); /* Open data section */
+
+/* [22] Masks of rp_arg0 (delete-file) */
+/* =================================== */
+define('RP_DELACCT',     0x00000008); /* Delete account */
+define('RP_DELDATA',     0x00000004); /* Delete DATA only */
+define('RP_DELDICT',     0x00000002); /* Delete DICT only */
+define('RP_DELSEPDATA',  0x00000001); /* Delete non default data section */
+
+/* Masks of rp_arg0 (upditm) */
+/* ========================= */
+define('RP_UPDIK',             0x00000002);          /* Keep item lock */
+define('RP_UPDDEL',            0x00000001);          /* Delete item */
+
+/* Masks of rp_arg1 (upditm) */
+/* ========================= */
+define('RP_UPDBIN',            0x00000002);          /* Force binary item */
+define('RP_UPDPTR',            0x00000001);          /* Force pointer item */
+
+/* Masks of rp_arg2 (upditm) */
+/* ========================= */
+define('RP_UPDBRDG',           0x00000001);          /* Bridge update */
+define('RP_DPTR',              0x00000002);          /* [13] a Dptr */
+define('RP_DELDPTR',           0x00000004);          /* [30905] Delete a Dptr */
+
+/* Masks of rp_arg1 (key)    */
+/* ========================= */
+define('RP_KEYSENSE',         0x00000002);          /* [20] case-sens */
+
+/* Masks of rp_arg2 (key)    */
+/* ========================= */
+define('RP_KEYNOVAL',          0x00000004);          /* [20] No val passed */
+
+/* Masks of rp_arg1 (root)    */
+/* ========================== */
+define('RP_INDEXNUMERIC', 0x00000001); /* Return code for numeric. */
+define('RP_INDEXCASESENSITIVE', 0x00000002); /* Return code for case. */
+
+/* Item header */
+/* =========== */
+define('RP_ITEMHDRSZ', 8);        /* Size of the zeroed section */
+
+/* }}} */
+
+class OSFI 
+{
+/* member variables {{{ */
+  var $sock;
+  var $connected;
+  var $rtncd;
+  var $cmd;
+  var $strsz;
+  var $bfsz;
+  var $pib = 0;
+  var $prot0;
+  var $prot1;
+  var $arg0;
+  var $arg1;
+  var $arg2;
+  var $arg3;
+  var $arg4;
+  var $debug;
+  var $txid = 0;
+  var $str = '';
+  var $hdr = '';
+
+  var $files;
+  var $file_count; 
+  var $selects;
+  var $select_count; 
+  var $indexes;
+  var $index_count; 
+  var $locks;
+  var $cache; 
+
+  var $user;
+  var $acct;
+
+  var $secure;
+
+/* }}} */
+
+  function __construct() { /* {{{ */
+
+    $this->sock = null;
+    $this->connected = false;
+    $this->txid = rand() % 1000000;
+    $this->pib = getmypid() % 1024;
+
+    $this->user = '';
+    $this->acct = '';
+
+    $this->files = array();
+    $this->selects = array();
+    $this->indexes = array();
+    $this->locks = array();
+    $this->cache = array();
+
+    $this->file_count = $this->select_count = $this->index_count = 0;
+
+    $this->secure = false;
+
+  }
+/* }}} */
+
+  function __destruct() { /* {{{ */
+    
+    if ($this->sock && $this->connected) {
+
+      if ($this->secure)
+        fclose($this->sock);
+      else {
+        socket_shutdown($this->sock);
+        socket_close($this->sock);
+      }
+    }
+
+  }
+/* }}} */
+
+function set_timeout($timein, $timeout) { /* {{{ */
+/*
+  set timeout options on the open socket
+  time in is time to wait for input
+  time out is time to wait for output
+
+  values are in seconds
+
+*/
+
+  if (!$this->sock) return;
+  else if (!$this->connected) return;
+
+  if ($this->secure) {
+    if ($timein) stream_set_timeout($this->sock, $timein, 0);
+    else if ($timeout) stream_set_timeout($this->sock, $timeout, 0);
+
+    return;
+
+  }
+
+  if ($timein)
+    socket_set_option($this->sock, SOL_SOCKET, SO_RCVTIMEO, array('sec'=>$timein, 'usec'=>0));
+
+  if ($timeout)
+    socket_set_option($this->sock, SOL_SOCKET, SO_SNDTIMEO, array('sec'=>$timeout, 'usec'=>0));
+
+}
+/* }}} */
+
+  function init($minor, $major) { /* {{{ */
+
+    $this->rtncd = 0;
+    $this->cmd = ($minor << 8) | $major;
+    $this->txid++;
+    $this->hdr = '';
+    $this->str = '';
+
+    $this->strsz = $this->bfsz = 0;
+    $this->prot0 = $this->prot1 = 0;
+    $this->arg0 = $this->arg1 = $this->arg2 = $this->arg3 = $this->arg4 = $this->arg5 = 0;
+
+  }
+/* }}} */
+
+  function tohost() /* {{{ */
+  {
+    $this->strsz = strlen($this->str);
+    $this->hdr = pack('Nn2N2nC2N2N5N3',$this->rtncd,$this->cmd,$this->strsz,$this->bfsz,0,$this->pib,0,2,
+                 $this->prot0, $this->prot1, $this->arg0, $this->arg1, $this->arg2, $this->arg3, $this->arg4,
+                 0,RP_HDRIDN,$this->txid);
+  }
+/* }}} */
+
+  function toclient($resp) /* {{{ */
+  {
+    $res = unpack('Nrtncd/ncmd/nstrsz/Nbfsz/Nhost/npib/C2lvldrv/N2prot/N5arg/N3ids',$resp);
+
+    $this->rtncd = $res['rtncd'];
+    $this->strsz = $res['strsz'];
+    $this->bfsz = $res['bfsz'];
+    $this->prot0 = $res['prot1'];
+    $this->prot1 = $res['prot2'];
+    $this->arg0 = $res['arg1'];
+    $this->arg1 = $res['arg2'];
+    $this->arg2 = $res['arg3'];
+    $this->arg3 = $res['arg4'];
+    $this->arg4 = $res['arg5'];
+
+  }
+/* }}} */
+
+  function send_bytes($txt, $len) { /* {{{ */
+
+    while ($txt != '') {
+
+      $n = $this->secure ? 			// use fwrite if secure, socket_write if raw sockets
+           fwrite($this->sock,$txt) : 
+           socket_write($this->sock,$txt); // send as much as we can
+
+      if ($n === false) return false; // failure!
+      if ($n) $txt = substr($txt,$n); // get the rest of the string to send
+    }
+
+    return true;
+  }
+/* }}} */
+
+  function recv_bytes(&$txt, $len) { /* {{{ */
+
+    $bytes = 0;
+    $txt = '';
+
+    while ($bytes < $len) {
+
+      if ($this->secure) {
+        $x = fread($this->sock,$len - $bytes);
+        if ($x === false) return false;
+        $n = strlen($x);
+      } else {
+        $x = '';
+        $n = socket_recv($this->sock,$x,$len - $bytes,MSG_WAITALL);
+        if ($n === false) return false; // failure
+      }
+
+      if ($x) {
+        $txt .= $x;
+        $bytes += $n;
+      }
+
+    }
+
+    return true;
+  }
+/* }}} */
+
+  function send($rec = null) /* {{{ */
+// send a packet to the osfi server
+// bfsz must be prepopulated with length to send
+// including any sentinel characters
+// that are NOT included in rec
+  {
+    if (!$this->sock) return false;
+    else if (!$this->connected) return false;
+
+    $this->tohost();
+    if (!$this->send_bytes($this->hdr.$this->str,60+$this->strsz)) 
+      return false; // failed
+
+    if ($this->bfsz) {
+
+      if (!$this->send_bytes("\xfe{$rec}\xfe\xff",$this->bfsz)) 
+        return false; // add pick sentinels always
+
+    }
+
+    return true; // if we get here we succeeded
+
+  }
+/* }}} */
+
+  function get(&$rec) /* {{{ */
+// get response from the server
+// if additional string is in the response, populate it in rec as is
+  {
+    if (!$this->sock) return false;
+    else if (!$this->connected) return false;
+
+    $rec = '';
+    if (!$this->recv_bytes($txt,60))
+      return false;
+
+    $this->toclient($txt); // populate variables from this header response
+
+    if ($this->bfsz) {
+
+      if (!$this->recv_bytes($rec,$this->bfsz))
+        return false;
+
+    }
+
+    return true;
+  }
+/* }}} */
+
+  function append() { /* {{{ */
+// append some text to the str (ie internal string buffer of rp_hdr)
+// this is variable args and will take as many as you provide
+// no formatted replacements like we use in c/c++
+// jsut provide the text to append
+
+    foreach(func_get_args() as $arg)
+     $this->str .= $arg;
+
+  }
+/* }}} */
+
+// common entry points that use existing methods of child classes
+function matread(&$arr, $fd, $id) /* {{{ */
+{
+  if ($this->read($rec, $fd, $id)) {
+    $arr = MATPARSE($rec);
+    return true;
+  }
+
+  return false;
+
+}
+/* }}} */
+
+function matreadu(&$arr, $fd, $id, &$locked) /* {{{ */
+{
+  if ($this->readu($rec, $fd, $id, $locked)) {
+    $arr = MATPARSE($rec);
+    return true;
+  }
+
+  return false;
+
+}
+/* }}} */
+
+function matwrite($arr, $fd, $id) /* {{{ */
+{
+
+  return $this->write(MATBUILD($arr), $fd, $id);
+
+}
+/* }}} */
+
+function matwriteu($arr, $fd, $id) /* {{{ */
+{
+
+  return $this->writeu(MATBUILD($arr), $fd, $id);
+
+}
+/* }}} */
+
+};
+
+
+
