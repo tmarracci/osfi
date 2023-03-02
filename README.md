@@ -38,7 +38,7 @@ Files and functions.
 The pick.inc file contains support for pick like functions in the PHP environment space.
 
 <code>
-_PRINT($txt) will output the specified text and replace Pick/D3 delimiters 
+function _PRINT($txt) will output the specified text and replace Pick/D3 delimiters 
 function DIM($n) create a blank pick array of dimension $n.  Pick arrays start with 1
 function INMAT($arr) the size of the array $arr in pick dimensions
 function MATBUILD($arr) construct a FE delimited string from the pick array $arr
