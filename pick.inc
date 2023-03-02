@@ -1,4 +1,5 @@
 <?
+// vim:foldmethod=marker
 /*
 
   dynamic array and matrix/vector handling
