@@ -112,12 +112,13 @@ picknfs.class is the heart of the matter.  This contains the data access methods
   function iconv($str, $conv) handle iconv masks that _iconv() does not support
   function oconv($str, $conv) handle oconv masks that _oconv() does not support
   function call($sub,$args = null) 
-    call a subroutine. With this handler, the subroutine need not be compiled with flash.  For most consistent results, provide a full path
-    to the subroutine (eg. dm,bp, subname)
-    if the subroutine takes arguments, pass them in an array.  Arguments to be passed by reference must be preceeded with &
-  
+    call a subroutine. With this handler, the subroutine need not be compiled with flash.  For most consistent results,
+<br>    provide a full path to the subroutine (eg. dm,bp, subname)
+<br>    if the subroutine takes arguments, pass them in an array.  
+<br>    Arguments to be passed by reference must be preceeded with &
+<br>  
     for example, assume the subroutine called ADD is in the DM,BP, file:
-  
+<br>  
   001 SUBROUTINE (X,Y,S)
   002 S = X+Y
   003 RETURN
