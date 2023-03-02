@@ -78,13 +78,13 @@ class PickNFS extends OSFI
     $login = false;
     $this->set_timeout(30,30);
 
+    $this->open(0,TRIGGERFILE,$this->queries) or die(TRIGGERFILE." file not found\n");
+
     if ($user === null && $pass === null && $acct === null && $apsw === null) {
       $this->user = 'DM';
       $this->acct = 'DM';
       return true;
     }
-
-    $this->open(0,TRIGGERFILE,$this->queries) or die(TRIGGERFILE." file not found\n");
 
     $this->use_queries("/LOGIN\xfb$user\xfb$pass\xfb$acct\xfb$apsw",$tmp) or die("PICKNFS queries could not be processed\n");
     if ($tmp != '')
@@ -805,13 +805,13 @@ class PickNFS_SSL extends PickNFS
     $login = false;
     $this->set_timeout(30,30);
 
+    $this->open(0,TRIGGERFILE,$this->queries) or die(TRIGGERFILE." file not found\n");
+
     if ($user === null && $pass === null && $acct === null && $apsw === null) {
       $this->user = 'DM';
       $this->acct = 'DM';
       return true;
     }
-
-    $this->open(0,TRIGGERFILE,$this->queries) or die(TRIGGERFILE." file not found\n");
 
     $this->use_queries("/LOGIN\xfb$user\xfb$pass\xfb$acct\xfb$apsw",$tmp) or die("PICKNFS: queries could not be processed\n");
     if ($tmp != '')
