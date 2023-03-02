@@ -76,7 +76,7 @@ function matreadu(&$arr, $fd, $id, &$locked) read a record and lock it (if not a
 function matwrite($arr, $fd, $id) write the record in array arr and if locked, unlock it
 function matwriteu($arr, $fd, $id) write the record in array and if locked, remain locked
   
-function get_pick() use this function (this is a global function, not a method) to access a global osfi object. modify as needed for your particular situation.  The provided version stores the user settings in a $_SERVER[CREDENTIALS] variable elsewhere and this function will make a connection via a global osfi object.  Your mileage may vary.
+function get_pick() use this function (this is a global function, not a method) to access a global osfi object. modify as needed for your particular situation.  The provided version will make an anonymous connection via a global osfi object.  Your mileage may vary.
   
 </code>
 
